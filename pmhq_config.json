@@ -1,0 +1,8 @@
+{
+    "qq_path": "",
+    "enable_gui": true,
+    "servers": [],
+    "default_host": "127.0.0.1",
+    "default_port": 13000,
+    "debug": false
+}
