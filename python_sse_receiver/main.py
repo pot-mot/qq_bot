@@ -1,10 +1,10 @@
 import random
-import re
 import uuid
 import asyncio
 import json
-
 import websockets
+from typing import List
+from DiceInfixCalculator import DiceInfixCalculator, DiceRollInfo
 
 
 async def async_input(prompt: str = "") -> str:
@@ -89,7 +89,7 @@ async def receive_messages(ws):
                         continue
 
                     message_text: str = message_data["text"]
-                    if message_text.lstrip().startswith("."):
+                    if message_text.lstrip().startswith(('.', '。')):
                         result: str = generate_result(message_text, sender_id, sender_nickname)
                         if "group_id" in message_dict:
                             group_id: str = message_dict["group_id"]
@@ -106,6 +106,9 @@ async def receive_messages(ws):
             print(f"发生未知错误: {e}")
 
 
+diceInfixCalculator = DiceInfixCalculator()
+
+
 def generate_result(raw_message: str, sender_id: str, sender_nickname: str) -> str:
     stripped_message = raw_message.strip()
     if not stripped_message.startswith(('.', '。')):
@@ -117,36 +120,37 @@ def generate_result(raw_message: str, sender_id: str, sender_nickname: str) -> s
     if command == "":
         return "请输入有效的指令"
 
-    # r 指令 - 生成 1-100 的随机数
-    if command == "r":
-        return f"{sender_nickname} 投掷1D100: {random.randint(1, 100)}"
-
     if command == "help":
-        return "支持的指令: .r, .rd数字, .r数字d数字"
+        return "支持的指令: \n.help\n.info\n.pot\n.mot\n.r\n.rd数字\n.r数字d数字"
 
-    # rd(Number) 指令 - 生成 1 到指定数字的随机数
-    rd_match = re.match(r"^rd(\d+)$", command)
-    if rd_match:
-        max_value = int(rd_match.group(1))
-        if max_value <= 0:
-            return "错误：数字必须大于0"
-        return f"{sender_nickname} 投掷1D{max_value}: {random.randint(1, max_value)}"
+    if command.startswith("pot"):
+        return f"{sender_nickname} 获得了 {random.randint(1, 6)} 个土豆"
+    if command.startswith("mot"):
+        return f"{sender_nickname} 获得了 {random.randint(1, 100)} db 的尖叫"
+    if command == "info":
+        return "自律型外星追车油炸土拨鼠鸡蛋土豆饼bot by potmot(377029227)\n纯正则匹配，无协议无核心（"
 
-    # r(Number)d(Number) 指令 - 生成多个指定范围的随机数
-    rdd_match = re.match(r"^r(\d+)d(\d+)$", command)
-    if rdd_match:
-        count = int(rdd_match.group(1))
-        max_value = int(rdd_match.group(2))
-
-        if count <= 0 or max_value <= 0:
-            return "错误：数字必须大于0"
-
-        results = [str(random.randint(1, max_value)) for _ in range(count)]
-        total = sum(int(x) for x in results)
-        return f"{sender_nickname} 投掷{count}D{max_value}: {', '.join(results)} (总计: {total})"
+    # 计算骰子表达式
+    if command.startswith("r"):
+        try:
+            expression = command[1:].strip().replace(" ", "").lower()
+            if len(expression) == 0:
+                expression = "d100"
+            dice_infos: List[DiceRollInfo] = []
+            result = diceInfixCalculator.calculate(expression, dice_infos)
+            dice_info_strs = [str(info) for info in dice_infos]
+            dice_info_str = \
+                f"\n[\n{',\n'.join(dice_info_strs)}\n]"
+            return f"{sender_nickname} 掷出了 {result}{dice_info_str}" if (
+                    len(dice_infos) > 0
+            ) else f"{sender_nickname} 计算得到 {result}"
+        except ValueError as e:
+            return f"错误: {str(e)}"
+        except Exception as e:
+            return f"未知错误: {str(e)}"
 
     # 未知指令
-    return f"未知指令: {command}\n支持的指令: .r, .rd数字, .r数字d数字"
+    return f"未知指令: {command}\n支持的指令: .r .rd"
 
 
 async def main():
@@ -159,4 +163,5 @@ async def main():
         #     await send_message_to_group(websocket, group_id, message)
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
