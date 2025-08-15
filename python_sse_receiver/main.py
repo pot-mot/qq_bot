@@ -139,8 +139,8 @@ def generate_result(raw_message: str, sender_id: str, sender_nickname: str) -> s
             dice_infos: List[DiceRollInfo] = []
             result = diceInfixCalculator.calculate(expression, dice_infos)
             dice_info_strs = [str(info) for info in dice_infos]
-            dice_info_str = \
-                f"\n[\n{',\n'.join(dice_info_strs)}\n]"
+            dice_info_strs_join = "\n".join(dice_info_strs)
+            dice_info_str = f"[\n{dice_info_strs_join}\n]"
             return f"{sender_nickname} 掷出了 {result}{dice_info_str}" if (
                     len(dice_infos) > 0
             ) else f"{sender_nickname} 计算得到 {result}"
