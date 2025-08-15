@@ -158,8 +158,10 @@ async def main():
 
     async with websockets.connect(uri) as websocket:
         asyncio.create_task(receive_messages(websocket))
-        while True:
-            await async_input("输入消息内容: ")
+        stop_event = asyncio.Event()
+        await stop_event.wait()  # 永远等待
+        # while True:
+        #     await async_input("输入消息内容: ")
         #     await send_message_to_group(websocket, group_id, message)
 
 
