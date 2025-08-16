@@ -7,6 +7,7 @@ from logging.handlers import TimedRotatingFileHandler
 import re
 import websockets
 import logging
+import signal
 from typing import List
 from dice import calculate as calculate_dice_expression, DiceRollInfo
 from message import TextMessage, send_message, GroupTextMessage, UserTextMessage
@@ -14,7 +15,29 @@ from user import UserInfoStore, UserInfo, CharacterInfo
 
 # 全局用户信息缓存实例
 user_infos = UserInfoStore()
-atexit.register(user_infos.stop)
+
+# 用于标识是否已执行清理
+cleanup_done = False
+
+
+def cleanup():
+    global cleanup_done
+    if not cleanup_done:
+        logging.info("执行清理操作...")
+        user_infos.stop()
+        cleanup_done = True
+
+
+# 信号处理函数
+def signal_handler(signum, frame):
+    logging.info(f"收到信号 {signum}，准备退出...")
+    cleanup()
+    # 退出程序
+    import sys
+    sys.exit(0)
+
+
+atexit.register(cleanup)
 
 
 async def async_input(prompt: str = "") -> str:
@@ -198,6 +221,9 @@ def execute_command(command: str, sender_id: int, sender_nickname: str, group_id
 
 
 async def main():
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
     log_format = "%(asctime)s - %(levelname)s - %(message)s"
 
     logging.basicConfig(level=logging.INFO, format=log_format)
@@ -226,4 +252,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    finally:
+        cleanup()

@@ -112,7 +112,7 @@ class UserInfoStore:
         # 清理线程运行标志
         self.running = True
         # 启动后台清理线程
-        self.clean_thread = Thread(target=self._clean_loop, daemon=True)
+        self.clean_thread = Thread(target=self._clean_save_loop, daemon=True)
         self.clean_thread.start()
 
     def get_user(self, user_id: int, nickname: str) -> UserInfo:
@@ -141,12 +141,13 @@ class UserInfoStore:
             except Exception as e:
                 logging.error(f"保存用户 {user} 时出错: {e}")
 
-    def _clean_loop(self) -> None:
+    def _clean_save_loop(self) -> None:
         """
         后台清理循环，定期检查并清理长时间未访问的用户信息
         """
         while self.running:
-            time.sleep(60)  # 每分钟检查一次
+            time.sleep(60)  # 每20秒检查一次
+            self.save_all_users()
             self._clean_expired_users()
 
     def _clean_expired_users(self) -> None:
@@ -158,15 +159,11 @@ class UserInfoStore:
 
         # 找出超过一段时间未访问的用户
         for user_id, last_access in self.last_access_time.items():
-            if current_time - last_access > 3600:  # 3600秒 = 1小时
+            if current_time - last_access > 3600:  # 3600秒
                 expired_users.append(user_id)
 
         # 保存并移除过期用户
         for user_id in expired_users:
-            try:
-                self.user_dict[user_id].sync_to_file()
-            except Exception as e:
-                logging.error(f"保存用户 {user_id} 时出错: {e}")
             del self.user_dict[user_id]
             del self.last_access_time[user_id]
 

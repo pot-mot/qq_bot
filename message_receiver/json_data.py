@@ -1,10 +1,9 @@
 import json
 import os
 import logging
-from typing import Dict, Any
 
 
-def load_data(file_path: str) -> Dict[str, Any]:
+def load_data(file_path: str) -> dict[str, any]:
     """
     从指定JSON文件加载数据
 
@@ -24,7 +23,7 @@ def load_data(file_path: str) -> Dict[str, Any]:
     return {}
 
 
-def save_data(file_path: str, data: Dict[str, Any]) -> bool:
+def save_data(file_path: str, data: dict[str, any]) -> bool:
     """
     将数据保存到指定JSON文件
 
@@ -36,10 +35,19 @@ def save_data(file_path: str, data: Dict[str, Any]) -> bool:
         操作是否成功
     """
     try:
-        # 确保目录存在
-        os.makedirs(os.path.dirname(file_path) if os.path.dirname(file_path) else '.', exist_ok=True)
+        # 获取文件的绝对路径
+        abs_file_path = os.path.abspath(file_path)
+        dir_name = os.path.dirname(abs_file_path)
 
-        with open(file_path, 'w', encoding='utf-8') as f:
+        # 确保目录存在（只有非空目录名才创建）
+        if dir_name and not os.path.exists(dir_name):
+            os.makedirs(dir_name, exist_ok=True)
+            logging.info(f"创建目录 {dir_name}")
+        else:
+            # 如果没有目录部分，则使用当前目录
+            dir_name = '.'
+
+        with open(abs_file_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return True
     except IOError as e:
