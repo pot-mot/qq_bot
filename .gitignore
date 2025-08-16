@@ -4,3 +4,5 @@
 /llonebot/node_modules/
 /.idea/
 /llonebot/
+/message_receiver/users/
+/message_receiver/bot.log

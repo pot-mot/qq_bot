@@ -1,13 +1,20 @@
+import atexit
 import json
 import random
 import asyncio
+import time
 from logging.handlers import TimedRotatingFileHandler
-
+import re
 import websockets
 import logging
 from typing import List
 from dice import calculate as calculate_dice_expression, DiceRollInfo
 from message import TextMessage, send_message, GroupTextMessage, UserTextMessage
+from message_receiver.user import UserInfoStore, UserInfo, CharacterInfo
+
+# 全局用户信息缓存实例
+user_infos = UserInfoStore()
+atexit.register(user_infos.stop)
 
 
 async def async_input(prompt: str = "") -> str:
@@ -111,32 +118,59 @@ async def receive_messages(ws):
 
 
 def execute_command(command: str, sender_id: int, sender_nickname: str, group_id: int or None = None) -> TextMessage:
+    # 记录执行的命令
+    logging.info(f"用户 {sender_nickname}({sender_id}) 执行命令: {command}")
+
     def to_text_message(message: str) -> TextMessage:
         if group_id is not None:
             return GroupTextMessage(group_id, message)
         else:
             return UserTextMessage(sender_id, message)
 
-    # 记录执行的命令
-    logging.info(f"用户 {sender_nickname}({sender_id}) 执行命令: {command}")
+    # 获取当前日期的时间戳（当天0点的时间戳）
+    current_date = time.localtime()
+    today_start = time.mktime((current_date.tm_year, current_date.tm_mon, current_date.tm_mday, 0, 0, 0, 0, 0, 0))
+    today_start_ns = int(today_start * 1_000_000_000)  # 转换为纳秒
+
+    current_user_info: UserInfo = user_infos.get_user(sender_id, sender_nickname)
+    current_character: CharacterInfo or None = None
+    current_nickname: str = current_user_info.nickname
+    if current_user_info.current_character_name is not None:
+        current_character = current_user_info.get_current_character_info()
+        if current_user_info is not None:
+            current_nickname = current_character.name
 
     if command == "info":
         return to_text_message(
             "自律型外星追车油炸土拨鼠鸡蛋土豆饼bot by potmot(377029227)\n纯文本指令匹配，无协议无核心（")
 
     if command == "help":
-        return to_text_message("支持的指令: \n.help\n.info\n.pot\n.mot\n.r\n.rd数字\n.r数字d数字")
+        return to_text_message("支持的指令: \n.help\n.info\n.pot\n.pot show\n.mot\n.r\n.rd数字\n.r数字d数字")
 
-    if command == "pot":
+    if command.startswith("pot"):
+        if re.match(r"pot\s+show", command):
+            return to_text_message(f"{sender_nickname} 现在有 {current_user_info.points} 个土豆")
+
+        if current_user_info.last_point_get_time > today_start_ns:
+            return to_text_message("今日份土豆已发放~")
+
         potato_count: int = random.randint(1, 6)
         if potato_count == 1:
             if random.randint(1, 100) == 100:
                 potato_count = 100
+        current_user_info.increase_points(potato_count)
+        current_user_info.last_point_get_time = time.time_ns()
         return to_text_message(f"{sender_nickname} 获得了 {potato_count} 个土豆")
 
     if command == "mot":
         voice_force = random.randint(1, 240)
         return to_text_message(f"{sender_nickname} 触碰土拨鼠，土拨鼠发出了 {voice_force} db 的尖叫")
+
+    if command == "jrrp":
+        if current_user_info.last_lucy_point_check_time < today_start_ns:
+            current_user_info.lucy_points = random.randint(1, 100)
+            current_user_info.last_lucy_point_check_time = time.time_ns()
+        return to_text_message(f"{sender_nickname} 今日人品为 {current_user_info.lucy_points}")
 
     # 计算骰子表达式
     if command.startswith("r"):
@@ -150,9 +184,9 @@ def execute_command(command: str, sender_id: int, sender_nickname: str, group_id
             dice_info_strs_join = "\n".join(dice_info_strs)
             dice_info_str = f"[\n{dice_info_strs_join}\n]"
             return to_text_message(
-                f"{sender_nickname} 掷出了 {result}{dice_info_str}" if (
+                f"{current_nickname} 掷出了 {result}{dice_info_str}" if (
                         len(dice_infos) > 0
-                ) else f"{sender_nickname} 计算得到 {result}"
+                ) else f"{current_nickname} 计算得到 {result}"
             )
         except ValueError as e:
             return to_text_message(f"值错误: {str(e)}")
@@ -164,9 +198,9 @@ def execute_command(command: str, sender_id: int, sender_nickname: str, group_id
 
 
 async def main():
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    log_format = "%(asctime)s - %(levelname)s - %(message)s"
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO, format=log_format)
 
     # 创建一个按天轮转的日志处理器，保留所有日志
     timed_handler = TimedRotatingFileHandler(
@@ -176,13 +210,8 @@ async def main():
         backupCount=0,  # 设置为0表示不删除旧日志文件
         encoding='utf-8'
     )
-    timed_handler.setFormatter(formatter)
+    timed_handler.setFormatter(logging.Formatter(log_format))
     logging.getLogger().addHandler(timed_handler)
-
-    # 添加控制台处理器
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logging.getLogger().addHandler(console_handler)
 
     uri = "ws://localhost:3001"
 
