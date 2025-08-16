@@ -10,7 +10,7 @@ import logging
 from typing import List
 from dice import calculate as calculate_dice_expression, DiceRollInfo
 from message import TextMessage, send_message, GroupTextMessage, UserTextMessage
-from message_receiver.user import UserInfoStore, UserInfo, CharacterInfo
+from user import UserInfoStore, UserInfo, CharacterInfo
 
 # 全局用户信息缓存实例
 user_infos = UserInfoStore()
