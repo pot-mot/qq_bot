@@ -3,7 +3,7 @@ import random
 import asyncio
 import websockets
 from typing import List
-from DiceInfixCalculator import DiceInfixCalculator, DiceRollInfo
+from dice import calculate as calculate_dice_expression, DiceRollInfo
 from message import TextMessage, send_message, GroupTextMessage, UserTextMessage
 
 
@@ -74,7 +74,9 @@ async def receive_messages(ws):
                                     # 如果是，则去掉前缀并执行命令
                                     actual_command = single_command[1:].strip()
                                     if len(actual_command) > 0:  # 忽略空行
-                                        result: TextMessage = execute_command(actual_command, sender_id, sender_nickname, group_id)
+                                        result: TextMessage = (
+                                            execute_command(actual_command, sender_id, sender_nickname, group_id)
+                                        )
                                         message_results.append(result)
 
                     elif message_type == "at":
@@ -103,9 +105,6 @@ async def receive_messages(ws):
             print("接收到无效的 JSON 数据")
         except Exception as e:
             print(f"发生未知错误: {e}")
-
-
-diceInfixCalculator = DiceInfixCalculator()
 
 
 def execute_command(command: str, sender_id: int, sender_nickname: str, group_id: int or None = None) -> TextMessage:
@@ -140,7 +139,7 @@ def execute_command(command: str, sender_id: int, sender_nickname: str, group_id
             if len(expression) == 0:
                 expression = "d100"
             dice_infos: List[DiceRollInfo] = []
-            result = diceInfixCalculator.calculate(expression, dice_infos)
+            result = calculate_dice_expression(expression, dice_infos)
             dice_info_strs = [str(info) for info in dice_infos]
             dice_info_strs_join = "\n".join(dice_info_strs)
             dice_info_str = f"[\n{dice_info_strs_join}\n]"

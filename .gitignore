@@ -1,6 +1,6 @@
 /data/
-/python_sse_receiver/.venv/
-/python_sse_receiver/.idea/
+/message_receiver/.venv/
+/message_receiver/.idea/
 /llonebot/node_modules/
 /.idea/
 /llonebot/
