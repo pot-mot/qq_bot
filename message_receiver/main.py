@@ -1,7 +1,10 @@
 import json
 import random
 import asyncio
+from logging.handlers import TimedRotatingFileHandler
+
 import websockets
+import logging
 from typing import List
 from dice import calculate as calculate_dice_expression, DiceRollInfo
 from message import TextMessage, send_message, GroupTextMessage, UserTextMessage
@@ -35,7 +38,7 @@ async def receive_messages(ws):
                 if self_id == sender_id:
                     continue
 
-                print(f"收到消息: {message_dict}")
+                logging.info(f"收到消息: {message_dict}")
 
                 sender_nickname = sender["nickname"]
                 messages = message_dict["message"]
@@ -99,12 +102,12 @@ async def receive_messages(ws):
                         await send_message(ws, result)
 
         except websockets.exceptions.ConnectionClosed:
-            print("WebSocket 连接已关闭")
+            logging.info("WebSocket 连接已关闭")
             break
         except json.JSONDecodeError:
-            print("接收到无效的 JSON 数据")
+            logging.error("接收到无效的 JSON 数据")
         except Exception as e:
-            print(f"发生未知错误: {e}")
+            logging.error(f"发生未知错误: {e}")
 
 
 def execute_command(command: str, sender_id: int, sender_nickname: str, group_id: int or None = None) -> TextMessage:
@@ -113,6 +116,9 @@ def execute_command(command: str, sender_id: int, sender_nickname: str, group_id
             return GroupTextMessage(group_id, message)
         else:
             return UserTextMessage(sender_id, message)
+
+    # 记录执行的命令
+    logging.info(f"用户 {sender_nickname}({sender_id}) 执行命令: {command}")
 
     if command == "info":
         return to_text_message(
@@ -158,15 +164,36 @@ def execute_command(command: str, sender_id: int, sender_nickname: str, group_id
 
 
 async def main():
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+    logging.basicConfig(level=logging.INFO)
+
+    # 创建一个按天轮转的日志处理器，保留所有日志
+    timed_handler = TimedRotatingFileHandler(
+        filename='bot.log',
+        when='midnight',
+        interval=1,
+        backupCount=0,  # 设置为0表示不删除旧日志文件
+        encoding='utf-8'
+    )
+    timed_handler.setFormatter(formatter)
+    logging.getLogger().addHandler(timed_handler)
+
+    # 添加控制台处理器
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logging.getLogger().addHandler(console_handler)
+
     uri = "ws://localhost:3001"
 
-    async with websockets.connect(uri) as websocket:
-        await asyncio.create_task(receive_messages(websocket))
-        stop_event = asyncio.Event()
-        await stop_event.wait()  # 永远等待
-        # while True:
-        #     await async_input("输入消息内容: ")
-        #     await send_message_to_group(websocket, group_id, message)
+    try:
+        async with websockets.connect(uri) as websocket:
+            logging.info(f"已连接到WebSocket服务器: {uri}")
+            await asyncio.create_task(receive_messages(websocket))
+            stop_event = asyncio.Event()
+            await stop_event.wait()  # 永远等待
+    except Exception as e:
+        logging.error(f"WebSocket连接失败: {e}")
 
 
 if __name__ == "__main__":
