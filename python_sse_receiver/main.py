@@ -70,27 +70,48 @@ async def receive_messages(ws):
                 sender_nickname = sender["nickname"]
                 messages = message_dict["message"]
 
-                if type(messages) != list:
+                if not isinstance(messages, list):
                     continue
+
+                has_at = False
+                at_self = False
+                message_results = []
 
                 for message in messages:
                     if "type" not in message:
                         continue
                     message_type = message["type"]
 
-                    # 仅处理文本消息
-                    if message_type != "text":
-                        continue
+                    # 处理文本消息
+                    if message_type == "text":
+                        if "data" not in message:
+                            continue
+                        message_data = message["data"]
+                        if "text" not in message_data:
+                            continue
 
-                    if "data" not in message:
-                        continue
-                    message_data = message["data"]
-                    if "text" not in message_data:
-                        continue
+                        message_text: str = message_data["text"]
+                        if message_text.lstrip().startswith(('.', '。')):
+                            result: str = generate_result(message_text, sender_id, sender_nickname)
+                            message_results.append(result)
 
-                    message_text: str = message_data["text"]
-                    if message_text.lstrip().startswith(('.', '。')):
-                        result: str = generate_result(message_text, sender_id, sender_nickname)
+                    elif message_type == "at":
+                        has_at = True
+                        if "data" not in message:
+                            continue
+
+                        message_data = message["data"]
+                        if "qq" in message_data:
+                            at_qq: str = message_data["qq"]
+                            if at_qq == str(self_id) or at_qq == "all":
+                                at_self = True
+
+                if (
+                    has_at and at_self
+                ) or (
+                    not has_at
+                ):
+                    for result in message_results:
                         if "group_id" in message_dict:
                             group_id: str = message_dict["group_id"]
                             await send_message_to_group(ws, group_id, result)
@@ -157,7 +178,7 @@ async def main():
     uri = "ws://localhost:3001"
 
     async with websockets.connect(uri) as websocket:
-        asyncio.create_task(receive_messages(websocket))
+        await asyncio.create_task(receive_messages(websocket))
         stop_event = asyncio.Event()
         await stop_event.wait()  # 永远等待
         # while True:
