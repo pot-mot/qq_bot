@@ -167,10 +167,10 @@ def execute_command(command: str, sender_id: int, sender_nickname: str, group_id
         return to_text_message(f"{sender_nickname} 触碰土拨鼠，土拨鼠发出了 {voice_force} db 的尖叫")
 
     if command == "jrrp":
-        if current_user_info.last_lucy_point_check_time < today_start_ns:
-            current_user_info.lucy_points = random.randint(1, 100)
-            current_user_info.last_lucy_point_check_time = time.time_ns()
-        return to_text_message(f"{sender_nickname} 今日人品为 {current_user_info.lucy_points}")
+        if current_user_info.last_lucky_point_check_time < today_start_ns:
+            current_user_info.lucky_points = random.randint(1, 100)
+            current_user_info.last_lucky_point_check_time = time.time_ns()
+        return to_text_message(f"{sender_nickname} 今日人品为 {current_user_info.lucky_points}")
 
     # 计算骰子表达式
     if command.startswith("r"):

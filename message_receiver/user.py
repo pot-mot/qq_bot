@@ -45,9 +45,9 @@ class UserInfo:
     # 上次获取点数的时间，以纳秒为单位
     last_point_get_time: int = 0
     # 幸运点数
-    lucy_points: int = 50
+    lucky_points: int = 50
     # 上次检查幸运点数时间，以纳秒为单位
-    last_lucy_point_check_time: int = 0
+    last_lucky_point_check_time: int = 0
     characters: dict[str, CharacterInfo] = {}
     current_character_name: str or None = None
 
@@ -62,9 +62,11 @@ class UserInfo:
         save_data(self.file_path(), {
             "nickname": self.nickname,
             "points": self.points,
+            "last_point_get_time": self.last_point_get_time,
+            "lucky_points": self.lucky_points,
+            "last_lucky_point_check_time": self.last_lucky_point_check_time,
             "characters": self.characters,
             "current_character_name": self.current_character_name,
-            "last_point_get_time": self.last_point_get_time,
         })
 
     def sync_from_file(self) -> None:
@@ -72,6 +74,8 @@ class UserInfo:
         self.nickname = data.get("nickname", self.nickname)
         self.points = data.get("points", self.points)
         self.last_point_get_time = data.get("last_point_get_time", self.last_point_get_time)
+        self.lucky_points = data.get("lucky_points", self.lucky_points)
+        self.last_lucky_point_check_time = data.get("last_lucky_point_check_time", self.last_lucky_point_check_time)
         self.current_character_name = data.get("current_character_name", self.current_character_name)
         self.characters = data.get("characters", self.characters)
 
