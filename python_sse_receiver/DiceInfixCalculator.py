@@ -25,6 +25,7 @@ all_precedence = "+-*/%^d()"
 left_precedence = "+-*/%^("
 right_precedence = "+-*/%^)"
 
+
 class DiceInfixCalculator:
     def __init__(self) -> None:
         # 定义运算符优先级，^ 的优先级高于 * 和 /，d运算符优先级与^相同且右结合
