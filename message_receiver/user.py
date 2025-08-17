@@ -14,6 +14,22 @@ class CharacterInfo:
     def __init__(self, name: str) -> None:
         self.name = name
 
+    def to_dict(self) -> dict:
+        return {
+            "name": self.name,
+            "max_hp": self.max_hp,
+            "current_hp": self.current_hp,
+            "skills": self.skills
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'CharacterInfo':
+        character = cls(data["name"])
+        character.max_hp = data.get("max_hp", 0)
+        character.current_hp = data.get("current_hp", 0)
+        character.skills = data.get("skills", {})
+        return character
+
     def set_max_hp(self, max_hp: int) -> None:
         self.max_hp = max_hp
 
@@ -35,6 +51,10 @@ class CharacterInfo:
 
     def set_skill_value(self, skill_name: str, value: int) -> None:
         self.skills[skill_name] = value
+
+    def remove_skill(self, skill_name: str) -> None:
+        if skill_name in self.skills:
+            del self.skills[skill_name]
 
 
 class UserInfo:
@@ -59,13 +79,14 @@ class UserInfo:
         return f"users/{self.user_id}.json"
 
     def sync_to_file(self) -> None:
+        characters_dict = {name: char.to_dict() for name, char in self.characters.items()}
         save_data(self.file_path(), {
             "nickname": self.nickname,
             "points": self.points,
             "last_point_get_time": self.last_point_get_time,
             "lucky_points": self.lucky_points,
             "last_lucky_point_check_time": self.last_lucky_point_check_time,
-            "characters": self.characters,
+            "characters": characters_dict,
             "current_character_name": self.current_character_name,
         })
 
@@ -76,8 +97,9 @@ class UserInfo:
         self.last_point_get_time = data.get("last_point_get_time", self.last_point_get_time)
         self.lucky_points = data.get("lucky_points", self.lucky_points)
         self.last_lucky_point_check_time = data.get("last_lucky_point_check_time", self.last_lucky_point_check_time)
+        characters_data = data.get("characters", {})
+        self.characters = {name: CharacterInfo.from_dict(char_data) for name, char_data in characters_data.items()}
         self.current_character_name = data.get("current_character_name", self.current_character_name)
-        self.characters = data.get("characters", self.characters)
 
     def increase_points(self, points: int) -> None:
         self.points += points
@@ -96,6 +118,11 @@ class UserInfo:
         if self.current_character_name not in self.characters:
             return None
         return self.characters[self.current_character_name]
+
+    def get_character_info(self, character_name: str) -> CharacterInfo or None:
+        if character_name not in self.characters:
+            return None
+        return self.characters[character_name]
 
     def remove_character(self, character_name: str) -> None:
         if self.current_character_name == character_name:
@@ -133,7 +160,6 @@ class UserInfoStore:
             self.last_access_time[user_id] = time.time()
         else:
             user = self.user_dict[user_id]
-            user.nickname = nickname
             self.last_access_time[user_id] = time.time()
         return user
 

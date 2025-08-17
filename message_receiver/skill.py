@@ -23,6 +23,8 @@ def pass_skill_value_expression(
     Returns:
         dict[str, int]: 解析后的键值对字典
     """
+    expression = expression.replace(" ", "")
+
     # 分割字符串
     parts = re.findall(r'[^0-9d+\-*/^%()]+|[0-9d+\-*/^%()]+', expression)
 
@@ -106,10 +108,10 @@ def calculate_skill_roll_expression(
                         target_value = int(target_value)
                 except Exception:
                     # 如果计算失败，从角色信息中获取技能值
-                    target_value = getattr(character_info, skill_name, 0)
+                    target_value = character_info.skills.get(skill_name, 0)
             else:
                 # 从角色信息中获取技能值
-                target_value = getattr(character_info, skill_name, 0)
+                target_value = character_info.skills.get(skill_name, 0)
         else:
             # 如果以数值开头，可能是直接指定目标值的情况
             try:
