@@ -194,7 +194,7 @@ def execute_command(command: str, sender_id: int, sender_nickname: str, group_id
             "自律型外星追车油炸土拨鼠鸡蛋土豆饼bot by potmot(377029227)\n纯文本指令匹配，无协议无核心（")
 
     if lower_command == "help":
-        return to_text_message("支持的指令: \n.help\n.info\n.pot\n.pot show\n.mot\n.r\n.rd数字\n.r数字d数字")
+        return to_text_message("支持的指令: \n.help\n.info\n.pot\n.pot show\n.mot\n.pc new\n.pc list\n.st\n.pc del\n.nn\n.r\n.rd\n.ra\n")
 
     if lower_command.startswith("pot"):
         if re.match(r"pot\s+show", lower_command):
