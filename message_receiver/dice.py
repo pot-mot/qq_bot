@@ -29,11 +29,11 @@ precedence: dict[str, int] = {'+': 1, '-': 1, '*': 2, '/': 2, '%': 2, '^': 3, 'd
 right_associative: set[str] = {'^', 'd', 'P', 'N'}
 
 
-def tokenize(expression: str) -> List[Union[int, float, str]]:
+def tokenize(expression: str, default_sides: int = 100) -> List[Union[int, float, str]]:
     """
     将表达式字符串分解为标记列表
     """
-    expression = expression.replace(' ', '')
+    expression = expression.replace(' ', '').lower()
     tokens: List[Union[int, float, str]] = []
     i: int = 0
     while i < len(expression):
@@ -64,7 +64,7 @@ def tokenize(expression: str) -> List[Union[int, float, str]]:
                     (i + 1 >= len(expression) or expression[i + 1] in right_precedence)
             ):
                 tokens.append('d')
-                tokens.append(100)
+                tokens.append(default_sides)
                 i += 1
             else:
                 tokens.append(expression[i])
@@ -200,15 +200,17 @@ def evaluate_postfix(postfix_tokens: List[Union[int, float, str]],
 
 
 def calculate(expression: str,
-              dice_details: Optional[List[DiceRollInfo]] = None) -> Union[int, float]:
+              dice_details: Optional[List[DiceRollInfo]] = None,
+              default_sides: int = 100) -> Union[int, float]:
     """
     计算中缀表达式的值
     :param expression: 中缀表达式字符串
     :param dice_details: 可选参数，用于记录骰子投掷的详细信息
+    :param default_sides: 可选参数，设置默认的骰子面数
     :return: 计算结果
     """
     # 1. 分词
-    tokens: List[Union[int, float, str]] = tokenize(expression)
+    tokens: List[Union[int, float, str]] = tokenize(expression, default_sides)
     # 2. 转换为后缀表达式
     postfix: List[Union[int, float, str]] = infix_to_postfix(tokens)
     # 3. 计算后缀表达式

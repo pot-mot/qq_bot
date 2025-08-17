@@ -97,6 +97,12 @@ class UserInfo:
             return None
         return self.characters[self.current_character_name]
 
+    def remove_character(self, character_name: str) -> None:
+        if self.current_character_name == character_name:
+            self.current_character_name = None
+        if character_name in self.characters:
+            del self.characters[character_name]
+
 
 class UserInfoStore:
     """

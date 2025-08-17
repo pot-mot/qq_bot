@@ -11,6 +11,7 @@ import signal
 from typing import List
 from dice import calculate as calculate_dice_expression, DiceRollInfo
 from message import TextMessage, send_message, GroupTextMessage, UserTextMessage
+from skill import pass_skill_value_expression, calculate_skill_roll_expression, SkillRollResult
 from user import UserInfoStore, UserInfo, CharacterInfo
 
 # 全局用户信息缓存实例
@@ -144,77 +145,140 @@ def execute_command(command: str, sender_id: int, sender_nickname: str, group_id
     # 记录执行的命令
     logging.info(f"用户 {sender_nickname}({sender_id}) 执行命令: {command}")
 
+    def to_user_message(message: str) -> UserTextMessage:
+        return UserTextMessage(sender_id, message)
+
     def to_text_message(message: str) -> TextMessage:
         if group_id is not None:
             return GroupTextMessage(group_id, message)
         else:
             return UserTextMessage(sender_id, message)
 
+    def calculate_dice_expression_message(expression: str) -> str:
+        try:
+            if len(expression) == 0:
+                expression = "d"
+            dice_infos: List[DiceRollInfo] = []
+            result = calculate_dice_expression(expression, dice_infos)
+            dice_info_strs = [str(info) for info in dice_infos]
+            dice_info_strs_join = "\n".join(dice_info_strs)
+            dice_info_str = f"[\n{dice_info_strs_join}\n]"
+            return f"{sender_nickname} 掷出了 {result}{dice_info_str}" if (
+                        len(dice_infos) > 0
+                ) else f"{sender_nickname} 计算得到 {result}"
+        except ValueError as e:
+            return f"值错误: {str(e)}"
+        except Exception as e:
+            return f"未知错误: {str(e)}"
+
+    def roll_skill(expression: str, current_character: CharacterInfo or None) -> str:
+        if current_character is None:
+            current_user.set_current_character(sender_nickname)
+            current_character = current_user.get_current_character_info()
+        result: SkillRollResult = calculate_skill_roll_expression(expression, current_character)
+        return f"{current_character.name} 投掷技能 {result.skill_name} ({result.roll_result}/{result.skill_value})，${result.success_type}~"
+
     # 获取当前日期的时间戳（当天0点的时间戳）
     current_date = time.localtime()
     today_start = time.mktime((current_date.tm_year, current_date.tm_mon, current_date.tm_mday, 0, 0, 0, 0, 0, 0))
     today_start_ns = int(today_start * 1_000_000_000)  # 转换为纳秒
 
-    current_user_info: UserInfo = user_infos.get_user(sender_id, sender_nickname)
+    current_user: UserInfo = user_infos.get_user(sender_id, sender_nickname)
     current_character: CharacterInfo or None = None
-    current_nickname: str = current_user_info.nickname
-    if current_user_info.current_character_name is not None:
-        current_character = current_user_info.get_current_character_info()
-        if current_user_info is not None:
-            current_nickname = current_character.name
+    if current_user.current_character_name is not None:
+        current_character = current_user.get_current_character_info()
 
-    if command == "info":
+    lower_command = command.lower()
+    if lower_command == "info":
         return to_text_message(
             "自律型外星追车油炸土拨鼠鸡蛋土豆饼bot by potmot(377029227)\n纯文本指令匹配，无协议无核心（")
 
-    if command == "help":
+    if lower_command == "help":
         return to_text_message("支持的指令: \n.help\n.info\n.pot\n.pot show\n.mot\n.r\n.rd数字\n.r数字d数字")
 
-    if command.startswith("pot"):
-        if re.match(r"pot\s+show", command):
-            return to_text_message(f"{sender_nickname} 现在有 {current_user_info.points} 个土豆")
+    if lower_command.startswith("pot"):
+        if re.match(r"pot\s+show", lower_command):
+            return to_text_message(f"{sender_nickname} 现在有 {current_user.points} 个土豆")
 
-        if current_user_info.last_point_get_time > today_start_ns:
+        if current_user.last_point_get_time > today_start_ns:
             return to_text_message("今日份土豆已发放~")
 
         potato_count: int = random.randint(1, 6)
         if potato_count == 1:
             if random.randint(1, 100) == 100:
                 potato_count = 100
-        current_user_info.increase_points(potato_count)
-        current_user_info.last_point_get_time = time.time_ns()
+        current_user.increase_points(potato_count)
+        current_user.last_point_get_time = time.time_ns()
         return to_text_message(f"{sender_nickname} 获得了 {potato_count} 个土豆")
 
-    if command == "mot":
+    if lower_command == "mot":
         voice_force = random.randint(1, 240)
         return to_text_message(f"{sender_nickname} 触碰土拨鼠，土拨鼠发出了 {voice_force} db 的尖叫")
 
-    if command == "jrrp":
-        if current_user_info.last_lucky_point_check_time < today_start_ns:
-            current_user_info.lucky_points = random.randint(1, 100)
-            current_user_info.last_lucky_point_check_time = time.time_ns()
-        return to_text_message(f"{sender_nickname} 今日人品为 {current_user_info.lucky_points}")
+    if lower_command == "jrrp":
+        if current_user.last_lucky_point_check_time < today_start_ns:
+            current_user.lucky_points = random.randint(1, 100)
+            current_user.last_lucky_point_check_time = time.time_ns()
+        return to_text_message(f"{sender_nickname} 今日人品为 {current_user.lucky_points}")
 
-    # 计算骰子表达式
-    if command.startswith("r"):
-        try:
-            expression = command[1:].strip().replace(" ", "").lower()
-            if len(expression) == 0:
-                expression = "d100"
-            dice_infos: List[DiceRollInfo] = []
-            result = calculate_dice_expression(expression, dice_infos)
-            dice_info_strs = [str(info) for info in dice_infos]
-            dice_info_strs_join = "\n".join(dice_info_strs)
-            dice_info_str = f"[\n{dice_info_strs_join}\n]"
-            return to_text_message(
-                f"{current_nickname} 掷出了 {result}{dice_info_str}" if (
-                        len(dice_infos) > 0
-                ) else f"{current_nickname} 计算得到 {result}"
-            )
-        except ValueError as e:
-            return to_text_message(f"值错误: {str(e)}")
-        except Exception as e:
-            return to_text_message(f"未知错误: {str(e)}")
+    # 角色部分
+    if lower_command.startswith("pc"):
+        expression = command[2:].strip()
+        if expression.lower().startswith("new"):
+            name = expression[3:].strip()
+            if name == "":
+                return to_text_message(f"{sender_nickname} 角色名称不能为空")
+            current_user.set_current_character(name)
+            return to_text_message(f"{sender_nickname} 创建了角色 {name}")
+        if expression.lower().startswith("list"):
+            character_names = "\n".join(list(current_user.characters.keys()))
+            return to_text_message(f"{sender_nickname} 的角色列表: \n{character_names}")
+        if expression.lower().startswith("del"):
+            name = expression[3:].strip()
+            if name == "":
+                return to_text_message(f"{sender_nickname} 角色名称不能为空")
+            if name in current_user.characters:
+                current_user.remove_character(name)
+                return to_text_message(f"{sender_nickname} 删除了角色 {name}")
+            else:
+                return to_text_message(f"{sender_nickname} 不存在角色 {name}")
+    # 名称部分
+    if lower_command.startswith("nn"):
+        name = command[2:].strip()
+        if name == "":
+            return to_text_message(f"{sender_nickname} 角色名称不能为空")
+        if current_character is None:
+            current_user.set_current_character(name)
+            return to_text_message(f"{sender_nickname} 创建了角色 {name}")
+        else:
+            current_character.name = name
+            return to_text_message(f"{sender_nickname} 设置角色名称为 {name}")
+
+    # 设置技能
+    if lower_command.startswith("st"):
+        expression = command[2:].strip().replace(" ", "")
+        skill_values = pass_skill_value_expression(expression)
+        if current_character is None:
+            current_user.set_current_character(sender_nickname)
+            current_character = current_user.get_current_character_info()
+        for skill_name, value in skill_values.items():
+            current_character.set_skill_value(skill_name, value)
+
+    # 投掷技能
+    if lower_command.startswith("rah"):
+        expression = command[2:].strip().replace(" ", "")
+        return to_user_message(roll_skill(expression, current_character))
+    if lower_command.startswith("ra"):
+        expression = command[3:].strip().replace(" ", "")
+        return to_text_message(roll_skill(expression, current_character))
+
+    # 投掷普通骰子
+    if lower_command.startswith("rh"):
+        expression = lower_command[2:].strip().replace(" ", "")
+        return to_user_message(calculate_dice_expression_message(expression))
+    if lower_command.startswith("r"):
+        expression = lower_command[1:].strip().replace(" ", "")
+        return to_text_message(calculate_dice_expression_message(expression))
 
     # 未知指令
     return to_text_message(f"未知指令: {command}\n支持的指令请执行.help")
