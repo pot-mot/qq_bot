@@ -92,9 +92,9 @@ def calculate_skill_roll_expression(
     parts = re.findall(r'[^0-9d+\-*/^%()]+|[0-9d+\-*/^%()]+', expression)
     parts = [part for part in parts if len(part) > 0]
 
-    # 默认技能名和目标值
+    # 默认技能名和技能值
     skill_name = ""
-    target_value = 0
+    skill_value = 0
 
     # 提取技能名和目标值
     if parts:
@@ -103,37 +103,37 @@ def calculate_skill_roll_expression(
             # 检查是否有指定的目标值
             if len(parts) > 1 and re.match(r'^[0-9d+\-*/^%()]+$', parts[1]):
                 try:
-                    target_value = calculate(parts[1], default_sides=default_sides)
-                    if isinstance(target_value, float):
-                        target_value = int(target_value)
+                    skill_value = calculate(parts[1], default_sides=default_sides)
+                    if isinstance(skill_value, float):
+                        skill_value = int(skill_value)
                 except Exception:
                     # 如果计算失败，从角色信息中获取技能值
-                    target_value = character_info.skills.get(skill_name, 0)
+                    skill_value = character_info.skills.get(skill_name, 0)
             else:
                 # 从角色信息中获取技能值
-                target_value = character_info.skills.get(skill_name, 0)
+                skill_value = character_info.skills.get(skill_name, 0)
         else:
             # 如果以数值开头，可能是直接指定目标值的情况
             try:
-                target_value = calculate(parts[0], default_sides=default_sides)
-                if isinstance(target_value, float):
-                    target_value = int(target_value)
+                skill_value = calculate(parts[0], default_sides=default_sides)
+                if isinstance(skill_value, float):
+                    skill_value = int(skill_value)
             except Exception:
-                target_value = 0
+                skill_value = 0
 
     # 执行骰子投掷
     dice_details = []
-    roll_result = calculate("1d100", dice_details, default_sides=100)
+    roll_result = calculate(f"1d{100 if skill_value < 100 else skill_value}", dice_details, default_sides=100)
     if isinstance(roll_result, float):
         roll_result = int(roll_result)
 
     # 创建结果对象
     result = SkillRollResult()
     result.skill_name = skill_name
-    result.skill_value = target_value
+    result.skill_value = skill_value
     result.roll_result = roll_result
     result.dice_details = dice_details
-    result.success_type = determine_success_type(roll_result, target_value)
+    result.success_type = determine_success_type(roll_result, skill_value)
 
     return result
 
