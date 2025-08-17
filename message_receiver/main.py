@@ -150,6 +150,17 @@ def execute_command(
     # 记录执行的命令
     logging.info(f"用户 {sender_nickname}({sender_id}) 执行命令: {command}")
 
+    # 获取当前日期的时间戳（当天0点的时间戳）
+    current_date = time.localtime()
+    today_start = time.mktime((current_date.tm_year, current_date.tm_mon, current_date.tm_mday, 0, 0, 0, 0, 0, 0))
+    today_start_ns = int(today_start * 1_000_000_000)  # 转换为纳秒
+
+    current_user: UserInfo = user_infos.get_user(sender_id, sender_nickname)
+    current_user_nickname = current_user.nickname
+    current_character: CharacterInfo or None = None
+    if current_user.current_character_name is not None:
+        current_character = current_user.get_current_character_info()
+
     def to_user_message(message: str) -> UserTextMessage:
         return UserTextMessage(sender_id, message)
 
@@ -168,9 +179,9 @@ def execute_command(
             dice_info_strs = [str(info) for info in dice_infos]
             dice_info_strs_join = "\n".join(dice_info_strs)
             dice_info_str = f"[\n{dice_info_strs_join}\n]"
-            return f"{sender_nickname} 掷出了 {result}{dice_info_str}" if (
+            return f"{current_user_nickname} 掷出了 {result}{dice_info_str}" if (
                         len(dice_infos) > 0
-                ) else f"{sender_nickname} 计算得到 {result}"
+                ) else f"{current_user_nickname} 计算得到 {result}"
         except ValueError as e:
             return f"值错误: {str(e)}"
         except Exception as e:
@@ -178,21 +189,10 @@ def execute_command(
 
     def roll_skill(expression: str, current_character: CharacterInfo or None) -> str:
         if current_character is None:
-            current_user.set_current_character(sender_nickname)
+            current_user.set_current_character(current_user_nickname)
             current_character = current_user.get_current_character_info()
         result: SkillRollResult = calculate_skill_roll_expression(expression, current_character)
         return f"{current_character.name} 投掷技能 {result.skill_name} ({result.roll_result}/{result.skill_value})，{result.success_type}~"
-
-    # 获取当前日期的时间戳（当天0点的时间戳）
-    current_date = time.localtime()
-    today_start = time.mktime((current_date.tm_year, current_date.tm_mon, current_date.tm_mday, 0, 0, 0, 0, 0, 0))
-    today_start_ns = int(today_start * 1_000_000_000)  # 转换为纳秒
-
-    current_user: UserInfo = user_infos.get_user(sender_id, sender_nickname)
-    current_user_nickname = current_user.nickname
-    current_character: CharacterInfo or None = None
-    if current_user.current_character_name is not None:
-        current_character = current_user.get_current_character_info()
 
     lower_command = command.lower()
     if lower_command == "info":
