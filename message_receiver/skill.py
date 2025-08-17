@@ -138,7 +138,7 @@ def calculate_skill_roll_expression(
     return result
 
 
-def determine_success_type(roll_result: int, target_value: int) -> str:
+def determine_success_type(roll_result: int, target_value: int, super_range: int = 5) -> str:
     """
     根据投掷结果和目标值确定成功类型
 
@@ -150,11 +150,11 @@ def determine_success_type(roll_result: int, target_value: int) -> str:
         str: 成功类型
     """
     # 大成功判定
-    if roll_result <= 5:
+    if (target_value >= super_range * 5 and roll_result <= super_range) or (roll_result <= roll_result // 5):
         return "大成功"
 
     # 大失败判定
-    if roll_result >= 96:
+    if target_value <= 100 and roll_result >= (100 - super_range):
         return "大失败"
 
     # 根据目标值确定成功等级
