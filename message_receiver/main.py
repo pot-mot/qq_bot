@@ -3,7 +3,6 @@ import json
 import random
 import asyncio
 import time
-import traceback
 from logging.handlers import TimedRotatingFileHandler
 import re
 import websockets
@@ -136,15 +135,15 @@ async def receive_messages(ws):
                     for result in message_results:
                         await send_message(ws, result)
 
-        except websockets.exceptions.ConnectionClosed:
-            logging.error(traceback.format_exc())
-            logging.info("WebSocket 连接已关闭")
-        except json.JSONDecodeError:
-            logging.error(traceback.format_exc())
+        except websockets.exceptions.ConnectionClosed as e:
+            logging.error("WebSocket 连接已关闭")
+            logging.error(e)
+        except json.JSONDecodeError as e:
             logging.error("接收到无效的 JSON 数据")
+            logging.error(e)
         except Exception as e:
-            logging.error(traceback.format_exc())
-            logging.error(f"发生未知错误: {e}")
+            logging.error(f"发生未知错误")
+            logging.error(e)
 
 
 def execute_command(
