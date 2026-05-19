@@ -138,12 +138,15 @@ async def receive_messages(ws):
         except websockets.exceptions.ConnectionClosed as e:
             logging.error("WebSocket 连接已关闭")
             logging.error(e)
+            raise e
         except json.JSONDecodeError as e:
             logging.error("接收到无效的 JSON 数据")
             logging.error(e)
+            raise e
         except Exception as e:
             logging.error(f"发生未知错误")
             logging.error(e)
+            raise e
 
 
 def execute_command(
@@ -353,7 +356,7 @@ async def main():
         filename='bot.log',
         when='midnight',
         interval=1,
-        backupCount=0,  # 设置为0表示不删除旧日志文件
+        backupCount=7,  # 设置为0表示不删除旧日志文件
         encoding='utf-8'
     )
     timed_handler.setFormatter(logging.Formatter(log_format))
@@ -361,14 +364,26 @@ async def main():
 
     uri = "ws://localhost:3001"
 
-    try:
-        async with websockets.connect(uri) as websocket:
-            logging.info(f"已连接到WebSocket服务器: {uri}")
-            await asyncio.create_task(receive_messages(websocket))
-            stop_event = asyncio.Event()
-            await stop_event.wait()  # 永远等待
-    except Exception as e:
-        logging.error(f"WebSocket连接失败: {e}")
+    max_retries = 10  # 可选：设置最大重试次数
+    retry_count = 0
+
+    while True:
+        try:
+            async with websockets.connect(uri) as websocket:
+                retry_count = 0  # 重置重试计数
+                logging.info(f"已连接到WebSocket服务器: {uri}")
+                await receive_messages(websocket)
+        except Exception as e:
+            retry_count += 1
+            logging.error(f"WebSocket连接失败 (第{retry_count}次): {e}")
+
+            if 0 < max_retries <= retry_count:
+                logging.error("达到最大重试次数，退出程序")
+                break
+
+            wait_time = min(2 ** retry_count, 60)  # 指数退避，最大60秒
+            logging.info(f"{wait_time}秒后尝试重新连接...")
+            await asyncio.sleep(wait_time)
 
 
 if __name__ == "__main__":
